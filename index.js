@@ -4,12 +4,20 @@ const mongoose = require('mongoose');
 const socket = require('socket.io');
 const cors = require('cors');
 const keys = require('./config/keys');
-const message = require('./model/message');
+const message = require('./models/message');
 const PORT = 3000;
+
+const room = require('./routes/room');
+const chat = require('./routes/chat');
 
 const app = express();
 app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({'extended':'false'}));
 app.use(cors());
+app.use('/api/room', room);
+app.use('/api/chat', chat);
+
+
 
 var server = app.listen(PORT, () => {
     console.log(`Server is listening on port: ${PORT}`);
@@ -31,11 +39,15 @@ let io = socket(server);
 io.on("connection", (socket) => {
     console.log("Socket Connection Established with ID :" + socket.id);
 
-    socket.on("chat", async function(chat) {
-        chat.created = new Date();
-        let response = await new message(chat).save();
-        socket.emit("chat", chat);
+    socket.on('disconnect', function() {
+        console.log('User disconnected');
     });
+    
+    socket.on('save-message', function (data) {
+        
+        io.emit('new-message', { message: data });
+    });
+
 });
 
 app.get('/chat', async (req, res) => {
